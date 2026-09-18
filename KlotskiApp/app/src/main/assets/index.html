@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Klotski — Sliding Block Puzzle</title>
+<link rel="icon" type="image/x-icon" href="klotski.jpg">
+<style>
+  :root{
+    --bg:#1b1f27; --panel:#242a35; --panel2:#2c3444; --accent:#4dd0e1; --accent2:#ff7043;
+    --text:#eef2f7; --muted:#9aa4b2; --border:#333c4a; --shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+  body.light{
+    --bg:#eef2f7; --panel:#ffffff; --panel2:#f2f5fa; --accent:#0097a7; --accent2:#e05a2e;
+    --text:#1b1f27; --muted:#5c6472; --border:#dde3ec; --shadow: 0 10px 24px rgba(0,0,0,0.1);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent; transition: background .25s ease, color .25s ease;}
+  .screen{display:none; min-height:100%; flex-direction:column; align-items:center; padding:20px 14px 40px; animation: fadeIn .25s ease;}
+  .screen.active{display:flex;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .container{width:100%; max-width:460px;}
+  h1{font-size:1.7rem; margin:6px 0 0; text-align:center; letter-spacing:.5px;}
+  h2{font-size:1.2rem; margin:0 0 10px;}
+  .subtitle{font-size:.85rem; color:var(--muted); text-align:center; margin-bottom:20px;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:var(--shadow);}
+  button{border:none; border-radius:12px; padding:12px 18px; font-size:.9rem; font-weight:700; cursor:pointer;
+    color:var(--text); background:var(--panel2); transition:transform .08s ease, background .15s ease; font-family:inherit;}
+  button:active{transform:scale(.96);}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),#2196a8); color:#012; width:100%; padding:16px; font-size:1.05rem; box-shadow:0 4px 14px rgba(77,208,225,.35);}
+  .btn-secondary{width:100%;}
+  .btn-back{background:transparent; color:var(--muted); padding:8px 4px; font-weight:600; align-self:flex-start;}
+  .menu-list{display:flex; flex-direction:column; gap:10px; width:100%; margin-top:6px;}
+  .top-bar{display:flex; align-items:center; justify-content:space-between; width:100%; max-width:460px; margin-bottom:6px;}
+  .stat-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .stat{background:var(--panel2); border-radius:10px; padding:8px 12px; font-size:.78rem; text-align:center; flex:1; min-width:80px;}
+  .stat b{display:block; font-size:1.05rem; color:var(--accent);}
+  .mode-card{display:flex; gap:12px; align-items:center; cursor:pointer;}
+  .mode-icon{width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0;
+    background:linear-gradient(160deg,var(--accent),#2196a8);}
+  .mode-info{flex:1;}
+  .mode-info h3{margin:0 0 2px; font-size:1rem;}
+  .mode-info p{margin:0; font-size:.78rem; color:var(--muted);}
+  .diff-pill{display:inline-block; font-size:.68rem; padding:2px 8px; border-radius:20px; margin-top:4px; font-weight:700;}
+  .diff-easy{background:#2e7d4f; color:#d7ffe6;}
+  .diff-medium{background:#a67c1e; color:#fff4d6;}
+  .diff-hard{background:#a13a2c; color:#ffe1d9;}
+  .toggle{position:relative; width:46px; height:26px; background:var(--panel2); border-radius:20px; cursor:pointer; flex-shrink:0; border:1px solid var(--border);}
+  .toggle .knob{position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:var(--muted); transition:left .18s ease, background .18s ease;}
+  .toggle.on{background:rgba(77,208,225,.25);}
+  .toggle.on .knob{left:22px; background:var(--accent);}
+  .setting-row{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border);}
+  .setting-row:last-child{border-bottom:none;}
+  .setting-row span{font-size:.9rem;}
+  .seg{display:flex; gap:6px;}
+  .seg button{flex:1; padding:8px; font-size:.78rem; background:var(--panel2);}
+  .seg button.active{background:var(--accent); color:#012;}
+  .section-label{font-size:.7rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:14px 0 6px;}
+  .tip-list li{margin-bottom:6px; font-size:.85rem;}
+  #board-wrap{position:relative; width:min(92vw,400px); background:#10131a; border-radius:14px; padding:6px;
+    box-shadow:inset 0 0 0 2px var(--border), var(--shadow); touch-action:none; user-select:none;}
+  body.light #board-wrap{background:#0e2a30;}
+  #board{position:relative; width:100%; height:100%;}
+  .exit-marker{position:absolute; background:repeating-linear-gradient(45deg, rgba(77,208,225,.15), rgba(77,208,225,.15) 6px, transparent 6px, transparent 12px);
+    border:2px dashed rgba(77,208,225,.6); border-top:none; border-radius:0 0 8px 8px; pointer-events:none; z-index:0;}
+  .piece{position:absolute; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.8rem;
+    color:rgba(0,0,0,.55); cursor:grab; transition:left .18s ease, top .18s ease, box-shadow .15s ease; box-shadow:0 3px 0 rgba(0,0,0,.25), inset 0 0 0 2px rgba(255,255,255,.15); z-index:2;}
+  .noanim .piece{transition:none;}
+  .piece.dragging{transition:none; cursor:grabbing; z-index:5; box-shadow:0 6px 14px rgba(0,0,0,.45), inset 0 0 0 2px rgba(255,255,255,.3);}
+  .piece.selected{box-shadow:0 0 0 3px var(--accent), 0 3px 0 rgba(0,0,0,.25);}
+  .piece.target{background:linear-gradient(160deg,#ff7d5c,#e5502f); color:#4a1200; font-size:.9rem;}
+  .piece.vert{background:linear-gradient(160deg,#6fb3ff,#3b7fd6);}
+  .piece.horiz{background:linear-gradient(160deg,#7fe3a0,#45b56b);}
+  .piece.soldier{background:linear-gradient(160deg,#ffe08a,#e0ab2c);}
+  .game-hud{display:flex; gap:8px; width:100%; max-width:400px; margin-bottom:10px; flex-wrap:wrap; justify-content:center;}
+  .timer-box{background:var(--panel2); border-radius:10px; padding:8px 14px; font-size:.85rem; text-align:center;}
+  .timer-box b{display:block; font-size:1.1rem; color:var(--accent2);}
+  .game-controls{width:100%; max-width:400px; margin-top:14px; display:flex; flex-direction:column; gap:10px; align-items:center;}
+  .row{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; width:100%;}
+  .diff-btn.active{background:var(--accent2)!important; color:#2a0900!important;}
+  .level-btn{aspect-ratio:1; padding:0; display:flex; align-items:center; justify-content:center; font-size:.85rem; background:var(--panel2);}
+  .level-btn.done{background:linear-gradient(160deg,var(--accent),#2196a8); color:#012;}
+  .level-btn.locked{background:var(--panel); color:var(--muted); cursor:not-allowed; opacity:.6;}
+  .level-btn.current{box-shadow:0 0 0 2px var(--accent2);}
+  .hint{font-size:.72rem; color:var(--muted); text-align:center; max-width:380px;}
+  .overlay{position:fixed; inset:0; background:rgba(10,12,16,.85); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .overlay.show{display:flex;}
+  .overlay-card{background:var(--panel); border-radius:16px; padding:26px 22px; max-width:340px; width:100%; text-align:center; box-shadow:var(--shadow);}
+  .overlay-card h2{font-size:1.5rem; color:var(--accent); margin:0 0 6px;}
+  .best-badge{display:inline-block; background:var(--accent2); color:#2a0900; font-weight:800; font-size:.75rem; padding:4px 10px; border-radius:20px; margin-bottom:10px;}
+  .overlay-card p{margin:4px 0; color:var(--muted); font-size:.85rem;}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="container">
+    <h1>🧩 Klotski</h1>
+    <div class="subtitle">Classic Sliding Block Puzzle</div>
+    <div class="stat-row" style="margin-bottom:16px;">
+      <div class="stat">Solved<b id="home-solved">0</b></div>
+      <div class="stat">Streak<b id="home-streak">0</b></div>
+      <div class="stat">Best<b id="home-best">—</b></div>
+    </div>
+    <div class="menu-list">
+      <button class="btn-primary" onclick="nav('screen-modes')">▶ PLAY</button>
+      <button class="btn-secondary" onclick="nav('screen-stats')">❖ STATISTICS</button>
+      <button class="btn-secondary" onclick="nav('screen-tutorials')">◈ TUTORIALS</button>
+      <button class="btn-secondary" onclick="nav('screen-settings')">⚙ SETTINGS</button>
+      <button class="btn-secondary" onclick="nav('screen-about')">ℹ ABOUT</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODE SELECT -->
+<div class="screen" id="screen-modes">
+  <div class="container">
+    <button class="btn-back" onclick="nav('screen-home')">← Back</button>
+    <h2>Select a Mode</h2>
+    <div class="menu-list" id="mode-list"></div>
+  </div>
+</div>
+
+<!-- TIME ATTACK SETUP -->
+<div class="screen" id="screen-timeattack-setup">
+  <div class="container">
+    <button class="btn-back" onclick="nav('screen-modes')">← Back</button>
+    <h2>Time Attack</h2>
+    <div class="card">
+      <p style="font-size:.85rem; margin-top:0;">Choose a difficulty. The board starts pre-scrambled and the clock starts the moment you press Play.</p>
+      <div class="section-label" style="margin-top:0;">Difficulty</div>
+      <div class="seg">
+        <button id="ta-easy" onclick="setTaDifficulty('easy')">Easy</button>
+        <button id="ta-medium" onclick="setTaDifficulty('medium')">Medium</button>
+        <button id="ta-hard" onclick="setTaDifficulty('hard')">Hard</button>
+      </div>
+    </div>
+    <div class="menu-list">
+      <button class="btn-primary" onclick="startTimeAttack(false)">▶ PLAY</button>
+      <button class="btn-secondary" onclick="startTimeAttack(true)">🎲 RANDOM</button>
+    </div>
+  </div>
+</div>
+
+<!-- JOURNEY MODE -->
+<div class="screen" id="screen-levels">
+  <div class="container">
+    <button class="btn-back" onclick="nav('screen-modes')">← Back</button>
+    <h2>Journey</h2>
+    <div class="card" style="margin-bottom:16px;">
+      <p style="font-size:.82rem; margin:0;">100 classic-board levels. Each level starts pre-scrambled and gets tougher as you climb — solve one to unlock the next.</p>
+    </div>
+    <div id="level-grid" style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; width:100%;"></div>
+  </div>
+</div>
+
+<!-- TUTORIALS -->
+<div class="screen" id="screen-tutorials">
+  <div class="container">
+    <button class="btn-back" onclick="nav('screen-home')">← Back</button>
+    <h2>How to Play</h2>
+    <div class="card">
+      <p>Move blocks by clicking/tapping them, then use the arrow keys — or simply drag/swipe them. Blocks can only slide into empty space.</p>
+    </div>
+    <div class="section-label">Goal</div>
+    <div class="card"><p>Slide the large <b style="color:var(--accent2)">red block</b> down to the exit at the bottom of the board.</p></div>
+    <div class="section-label">Controls</div>
+    <div class="card">
+      <p>🖱 Mouse / touch: drag a block<br>⌨ Keyboard: arrow keys move the selected block<br>↺ Reset: restart the current puzzle<br>🎲 Randomize: generate a new solvable layout</p>
+    </div>
+    <div class="section-label">Tips</div>
+    <div class="card">
+      <ul class="tip-list">
+        <li>Plan several moves ahead before sliding a block.</li>
+        <li>Create empty space strategically near the exit.</li>
+        <li>Avoid unnecessary back-and-forth moves.</li>
+        <li>Try to solve each puzzle in as few moves as possible.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="screen-settings">
+  <div class="container">
+    <button class="btn-back" onclick="nav('screen-home')">← Back</button>
+    <h2>Settings</h2>
+    <div class="section-label">Audio</div>
+    <div class="card">
+      <div class="setting-row"><span>Music</span><div class="toggle" id="t-music" onclick="toggleSetting('music')"><div class="knob"></div></div></div>
+      <div class="setting-row" style="border-bottom:none; padding-top:0;">
+        <input type="range" id="v-music" min="0" max="100" style="width:100%;" oninput="setVolume('musicVolume', this.value)">
+      </div>
+      <div class="setting-row"><span>Sound Effects</span><div class="toggle" id="t-sfx" onclick="toggleSetting('sfx')"><div class="knob"></div></div></div>
+      <div class="setting-row" style="border-bottom:none; padding-top:0;">
+        <input type="range" id="v-sfx" min="0" max="100" style="width:100%;" oninput="setVolume('sfxVolume', this.value)">
+      </div>
+    </div>
+    <div class="section-label">Appearance</div>
+    <div class="card">
+      <div class="setting-row"><span>Theme</span>
+        <div class="seg">
+          <button id="theme-dark" onclick="setTheme('dark')">Dark</button>
+          <button id="theme-light" onclick="setTheme('light')">Light</button>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">Gameplay</div>
+    <div class="card">
+      <div class="setting-row"><span>Confirm Reset</span><div class="toggle" id="t-confirmReset" onclick="toggleSetting('confirmReset')"><div class="knob"></div></div></div>
+      <div class="setting-row"><span>Show Move Counter</span><div class="toggle" id="t-showMoves" onclick="toggleSetting('showMoves')"><div class="knob"></div></div></div>
+      <div class="setting-row"><span>Animations</span><div class="toggle" id="t-animations" onclick="toggleSetting('animations')"><div class="knob"></div></div></div>
+    </div>
+    <div class="section-label">Data</div>
+    <div class="card menu-list">
+      <button onclick="askReset('progress')">Reset Progress</button>
+      <button onclick="askReset('statistics')">Reset Statistics</button>
+      <button onclick="askReset('all')" style="background:var(--accent2); color:#2a0900;">Reset Everything</button>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div class="screen" id="screen-about">
+  <div class="container">
+    <button class="btn-back" onclick="nav('screen-home')">← Back</button>
+    <h1 style="margin-top:0;">🧩 Klotski</h1>
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">About the Game</div>
+      <p style="font-size:.85rem;">Klotski (also known as Hua Rong Dao) is a classic sliding-block puzzle. Rearrange the blocks so the large target block can slide out through the exit, using as few moves as possible.</p>
+    </div>
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">Developer</div>
+      <p style="font-size:.85rem;">monadelphous</p>
+    </div>
+    <div class="card">
+      <div class="section-label" style="margin-top:0;">Version & Credits</div>
+      <p style="font-size:.85rem;">Version 1.0.0</p>
+      <p style="font-size:.8rem; color:var(--muted);">Website: yourwebsite.example · GitHub: github.com/yourname</p>
+    </div>
+  </div>
+</div>
+
+<!-- STATISTICS -->
+<div class="screen" id="screen-stats">
+  <div class="container">
+    <button class="btn-back" onclick="nav('screen-home')">← Back</button>
+    <h2>Statistics</h2>
+    <div class="card menu-list" id="stats-list"></div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="top-bar">
+    <button class="btn-back" onclick="exitToMenu()">← Menu</button>
+    <span id="game-mode-label" style="font-size:.8rem; color:var(--muted);"></span>
+  </div>
+  <div class="game-hud" id="game-hud">
+    <div class="stat" id="hud-moves-box">Moves<b id="moveCount">0</b></div>
+    <div class="stat">Best<b id="bestCount">—</b></div>
+    <div class="timer-box" id="hud-timer" style="display:none;">Time<b id="timerVal">--</b></div>
+  </div>
+  <div id="board-wrap"><div id="board"></div></div>
+  <div class="game-controls">
+    <button id="randomizeBtnMain" onclick="handleRandomizeClick()" style="display:none;" class="btn-secondary">🎲 RANDOMIZE</button>
+    <div class="row" id="diffMenu" style="display:none;">
+      <button class="diff-btn" onclick="randomize('easy')">Easy</button>
+      <button class="diff-btn" onclick="randomize('medium')">Medium</button>
+      <button class="diff-btn" onclick="randomize('hard')">Hard</button>
+    </div>
+    <div class="row">
+      <button onclick="resetGame()">↺ Reset</button>
+    </div>
+    <div class="hint">Tap a block to select it, then use arrow keys — or drag/swipe it — to slide it.</div>
+  </div>
+</div>
+
+<!-- WIN OVERLAY -->
+<div class="overlay" id="winOverlay">
+  <div class="overlay-card">
+    <div id="bestBadge" class="best-badge" style="display:none;">🏆 NEW BEST!</div>
+    <h2>PUZZLE SOLVED!</h2>
+    <p id="win-moves"></p>
+    <p id="win-time" style="display:none;"></p>
+    <p id="win-diff"></p>
+    <div class="menu-list" style="margin-top:14px;">
+      <button class="btn-primary" onclick="nextPuzzle()">NEXT PUZZLE</button>
+      <button class="btn-secondary" onclick="replayPuzzle()">REPLAY</button>
+      <button class="btn-secondary" onclick="goHomeFromOverlay()">MENU</button>
+    </div>
+  </div>
+</div>
+
+<!-- TIME UP OVERLAY -->
+<div class="overlay" id="timeUpOverlay">
+  <div class="overlay-card">
+    <h2 style="color:var(--accent2);">⏱ TIME'S UP</h2>
+    <p>You ran out of time. Give it another shot?</p>
+    <div class="menu-list" style="margin-top:14px;">
+      <button class="btn-primary" onclick="replayPuzzle()">TRY AGAIN</button>
+      <button class="btn-secondary" onclick="goHomeFromOverlay()">MENU</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM RESET OVERLAY -->
+<div class="overlay" id="confirmOverlay">
+  <div class="overlay-card">
+    <h2 style="font-size:1.1rem;">Reset puzzle?</h2>
+    <p>Your current progress on this puzzle will be lost.</p>
+    <div class="menu-list" style="margin-top:14px;">
+      <button class="btn-primary" onclick="confirmedReset()">Yes, Reset</button>
+      <button class="btn-secondary" onclick="closeOverlay('confirmOverlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DATA RESET CONFIRM OVERLAY -->
+<div class="overlay" id="resetDataOverlay">
+  <div class="overlay-card">
+    <h2 style="font-size:1.1rem;" id="resetDataTitle">Reset?</h2>
+    <p id="resetDataText"></p>
+    <div class="menu-list" style="margin-top:14px;">
+      <button class="btn-primary" onclick="performReset()">Yes, Reset</button>
+      <button class="btn-secondary" onclick="closeOverlay('resetDataOverlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM EXIT OVERLAY -->
+<div class="overlay" id="confirmExitOverlay">
+  <div class="overlay-card">
+    <h2 style="font-size:1.1rem;">Leave puzzle?</h2>
+    <p>Your progress on this puzzle will be lost if you leave.</p>
+    <div class="menu-list" style="margin-top:14px;">
+      <button class="btn-primary" onclick="confirmedExit()">Leave</button>
+      <button class="btn-secondary" onclick="closeOverlay('confirmExitOverlay')">Stay</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= PERSISTENCE ================= */
+const DEFAULT_SETTINGS = { music:true, sfx:true, musicVolume:50, sfxVolume:70, theme:'dark', confirmReset:true, showMoves:true, animations:true };
+const DEFAULT_STATS = { solved:0, totalMoves:0, bestMoves:null, bestTime:null, streak:0, lastSolvedDate:null, dailyCompletedDates:[], modeCounts:{}, unlockedLevel:1, completedLevels:[] };
+
+function loadJSON(key, fallback){
+  try{ const v = localStorage.getItem(key); return v ? Object.assign({}, fallback, JSON.parse(v)) : {...fallback}; }
+  catch(e){ return {...fallback}; }
+}
+function saveJSON(key, obj){ try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){} }
+
+let settings = loadJSON('klotski_settings', DEFAULT_SETTINGS);
+let stats = loadJSON('klotski_stats', DEFAULT_STATS);
+
+/* ================= AUDIO (synthesized, no external files) ================= */
+let audioCtx = null, musicNodes = null;
+function ensureAudioCtx(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ return null; }
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function playTone(freq, dur, type, gainMul){
+  if(!settings.sfx) return;
+  const ctx = ensureAudioCtx(); if(!ctx) return;
+  const osc = ctx.createOscillator(); const gain = ctx.createGain();
+  osc.type = type || 'sine'; osc.frequency.value = freq;
+  const vol = (settings.sfxVolume/100) * (gainMul||1);
+  gain.gain.setValueAtTime(vol, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(); osc.stop(ctx.currentTime + dur);
+}
+function sfxMove(){ playTone(440, 0.08, 'square', 0.25); }
+function sfxWin(){ playTone(523, 0.15, 'triangle', 0.35); setTimeout(()=>playTone(659,0.15,'triangle',0.35),120); setTimeout(()=>playTone(784,0.25,'triangle',0.4),240); }
+
+function startMusic(){
+  if(!settings.music) return;
+  const ctx = ensureAudioCtx(); if(!ctx) return;
+  if(musicNodes) return;
+  const gain = ctx.createGain();
+  gain.gain.value = (settings.musicVolume/100) * 0.15;
+  gain.connect(ctx.destination);
+  const o1 = ctx.createOscillator(); o1.type='sine'; o1.frequency.value=196;
+  const o2 = ctx.createOscillator(); o2.type='sine'; o2.frequency.value=246.94;
+  o1.connect(gain); o2.connect(gain);
+  o1.start(); o2.start();
+  musicNodes = { gain, o1, o2 };
+}
+function stopMusic(){
+  if(musicNodes){
+    try{ musicNodes.o1.stop(); musicNodes.o2.stop(); }catch(e){}
+    musicNodes = null;
+  }
+}
+function updateMusicState(){
+  if(settings.music) startMusic(); else stopMusic();
+  if(musicNodes) musicNodes.gain.gain.value = (settings.musicVolume/100) * 0.15;
+}
+function setVolume(key, value){
+  settings[key] = Number(value);
+  saveJSON('klotski_settings', settings);
+  if(key === 'musicVolume' && musicNodes) musicNodes.gain.gain.value = (settings.musicVolume/100)*0.15;
+}
+
+/* ---- generic data-reset overlay (native confirm() is unreliable in embedded previews) ---- */
+let pendingResetKind = null;
+function askReset(kind){
+  pendingResetKind = kind;
+  const titles = { progress:'Reset progress?', statistics:'Reset statistics?', all:'Reset everything?' };
+  const texts = {
+    progress:'This clears puzzles solved, streak, daily-completion history, and Journey level progress. Best scores are kept.',
+    statistics:'This clears best moves, best time, total moves, and favorite mode. Progress/streak are kept.',
+    all:'This clears ALL saved progress and statistics. This cannot be undone.'
+  };
+  document.getElementById('resetDataTitle').textContent = titles[kind];
+  document.getElementById('resetDataText').textContent = texts[kind];
+  document.getElementById('resetDataOverlay').classList.add('show');
+}
+function performReset(){
+  if(pendingResetKind === 'progress'){
+    stats.solved = 0; stats.streak = 0; stats.lastSolvedDate = null; stats.dailyCompletedDates = [];
+    stats.unlockedLevel = 1; stats.completedLevels = [];
+  } else if(pendingResetKind === 'statistics'){
+    stats.bestMoves = null; stats.bestTime = null; stats.totalMoves = 0; stats.modeCounts = {};
+  } else if(pendingResetKind === 'all'){
+    stats = {...DEFAULT_STATS};
+  }
+  saveJSON('klotski_stats', stats);
+  closeOverlay('resetDataOverlay');
+  refreshHome(); refreshStats();
+}
+
+function applySettingsToUI(){
+  document.body.classList.toggle('light', settings.theme === 'light');
+  document.body.classList.toggle('noanim', !settings.animations);
+  ['music','sfx','confirmReset','showMoves','animations'].forEach(k=>{
+    const el = document.getElementById('t-'+k);
+    if(el) el.classList.toggle('on', !!settings[k]);
+  });
+  const vm = document.getElementById('v-music'); if(vm) vm.value = settings.musicVolume;
+  const vs = document.getElementById('v-sfx'); if(vs) vs.value = settings.sfxVolume;
+  document.getElementById('theme-dark').classList.toggle('active', settings.theme==='dark');
+  document.getElementById('theme-light').classList.toggle('active', settings.theme==='light');
+  document.getElementById('hud-moves-box').style.display = settings.showMoves ? '' : 'none';
+  updateMusicState();
+}
+function toggleSetting(key){
+  settings[key] = !settings[key]; saveJSON('klotski_settings', settings); applySettingsToUI(); render();
+}
+function setTheme(t){ settings.theme = t; saveJSON('klotski_settings', settings); applySettingsToUI(); }
+
+/* ================= NAVIGATION ================= */
+let navStack = ['screen-home'];
+function nav(id, push){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(push !== false) navStack.push(id);
+  if(id === 'screen-home') refreshHome();
+  if(id === 'screen-stats') refreshStats();
+  if(id === 'screen-modes') refreshModes();
+  if(id === 'screen-timeattack-setup') setTaDifficulty(taDifficulty);
+  if(id === 'screen-levels') refreshLevels();
+}
+
+function refreshHome(){
+  document.getElementById('home-solved').textContent = stats.solved;
+  document.getElementById('home-streak').textContent = stats.streak;
+  document.getElementById('home-best').textContent = stats.bestMoves === null ? '—' : stats.bestMoves;
+}
+
+function refreshStats(){
+  const el = document.getElementById('stats-list');
+  const favMode = Object.keys(stats.modeCounts).sort((a,b)=>(stats.modeCounts[b]||0)-(stats.modeCounts[a]||0))[0] || '—';
+  const todayKey = todayString();
+  const dailyDone = stats.dailyCompletedDates.includes(todayKey);
+  el.innerHTML = `
+    <div class="setting-row"><span>Puzzles Solved</span><b>${stats.solved}</b></div>
+    <div class="setting-row"><span>Total Moves</span><b>${stats.totalMoves}</b></div>
+    <div class="setting-row"><span>Best Moves</span><b>${stats.bestMoves===null?'—':stats.bestMoves}</b></div>
+    <div class="setting-row"><span>Best Time</span><b>${stats.bestTime===null?'—':stats.bestTime+'s'}</b></div>
+    <div class="setting-row"><span>Current Streak</span><b>${stats.streak}</b></div>
+    <div class="setting-row"><span>Daily Completed Today</span><b>${dailyDone?'Yes':'No'}</b></div>
+    <div class="setting-row"><span>Journey Progress</span><b>${stats.completedLevels.length} / ${TOTAL_LEVELS} (Level ${stats.unlockedLevel})</b></div>
+    <div class="setting-row"><span>Favorite Mode</span><b>${favMode}</b></div>
+  `;
+}
+
+function todayString(){
+  const d = new Date();
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+
+/* ================= GAME MODES ================= */
+const MODES = [
+  { id:'classic', name:'Classic', icon:'🟥', diff:'easy', desc:'Traditional Klotski, standard board.' },
+  { id:'journey', name:'Journey', icon:'🗺️', diff:'easy', desc:'100 classic-board levels, each a little harder than the last.' },
+  { id:'big', name:'The Grand Board', icon:'🟦', diff:'hard', desc:'A big board with a random number of blocks every time.' },
+  { id:'challenge', name:'Challenge', icon:'🔥', diff:'hard', desc:'Carefully scrambled, tough starting positions.' },
+  { id:'timeattack', name:'Time Attack', icon:'⏱', diff:'medium', desc:'Choose a difficulty, then race the clock.' },
+  { id:'random', name:'Random', icon:'🎲', diff:'medium', desc:'A freshly shuffled solvable puzzle every time.' },
+  { id:'daily', name:'Daily Puzzle', icon:'📅', diff:'medium', desc:'One shared puzzle for everyone, every day.' }
+];
+
+function refreshModes(){
+  const list = document.getElementById('mode-list');
+  const todayDone = stats.dailyCompletedDates.includes(todayString());
+  list.innerHTML = MODES.map(m => `
+    <div class="card mode-card" onclick="${
+      m.id==='timeattack' ? "nav('screen-timeattack-setup')" :
+      m.id==='journey' ? "nav('screen-levels')" :
+      `startMode('${m.id}')`
+    }">      <div class="mode-icon">${m.icon}</div>
+      <div class="mode-info">
+        <h3>${m.name}${m.id==='daily' && todayDone ? ' ✅' : ''}</h3>
+        <p>${m.desc}</p>
+        <span class="diff-pill diff-${m.diff}">${m.diff.toUpperCase()}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ---- Journey mode: 100 levels, seeded so each level is a fixed puzzle ---- */
+const TOTAL_LEVELS = 100;
+function refreshLevels(){
+  const grid = document.getElementById('level-grid');
+  let html = '';
+  for(let lvl=1; lvl<=TOTAL_LEVELS; lvl++){
+    const locked = lvl > stats.unlockedLevel;
+    const done = stats.completedLevels.includes(lvl);
+    const cls = ['level-btn']; if(locked) cls.push('locked'); if(done) cls.push('done'); if(lvl===stats.unlockedLevel) cls.push('current');
+    html += `<button class="${cls.join(' ')}" ${locked?'disabled':''} onclick="startLevel(${lvl})">${done?'✓':lvl}</button>`;
+  }
+  grid.innerHTML = html;
+}
+function levelShuffleCount(lvl){
+  // difficulty ramps smoothly from ~8 legal moves at level 1 to ~250 at level 100
+  return Math.min(250, 8 + Math.round(lvl * 2.4));
+}
+function startLevel(lvl){
+  if(lvl > stats.unlockedLevel) return;
+  currentLevelNum = lvl;
+  setBoardDims(4,5,1,2);
+  initialLayoutSnapshot = classicLayout();
+  const rng = mulberry32(lvl * 7919 + 13);
+  pieces = shuffleFromLayout(initialLayoutSnapshot, levelShuffleCount(lvl), rng);
+  currentMode = 'journey';
+  moveCount = 0; selectedId = null; startTimestamp = Date.now();
+  document.getElementById('hud-timer').style.display = 'none';
+  document.getElementById('randomizeBtnMain').style.display = 'none';
+  diffMenu.style.display = 'none';
+  setLabel('Journey · Level '+lvl+' / '+TOTAL_LEVELS);
+  nav('screen-game');
+  render();
+}
+
+/* ================= SEEDED RANDOM ================= */
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function dateSeed(){
+  const d = new Date(); const s = todayString();
+  let h = 0; for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i)) | 0; }
+  return h;
+}
+
+/* ================= PUZZLE ENGINE (generic size) ================= */
+let COLS=4, ROWS=5, EXIT_START=1, EXIT_END=2;
+let pieces = [];
+let initialLayoutSnapshot = [];
+let moveCount = 0;
+let selectedId = null;
+let currentMode = 'classic';
+let currentLevelNum = 1;
+let currentDifficultyRange = null;
+let cellSize = 0;
+let timerInterval = null;
+let timeRemaining = 0;
+let startTimestamp = null;
+let rngForMode = Math.random;
+
+const boardEl = document.getElementById('board');
+const moveCountEl = document.getElementById('moveCount');
+const bestCountEl = document.getElementById('bestCount');
+const diffMenu = document.getElementById('diffMenu');
+const winOverlay = document.getElementById('winOverlay');
+
+function classicLayout(){
+  return [
+    { id:'target', x:1, y:0, w:2, h:2, type:'target' },
+    { id:'v1', x:0, y:0, w:1, h:2, type:'vert' },
+    { id:'v2', x:3, y:0, w:1, h:2, type:'vert' },
+    { id:'h1', x:1, y:2, w:2, h:1, type:'horiz' },
+    { id:'s1', x:0, y:2, w:1, h:1, type:'soldier' },
+    { id:'s2', x:3, y:2, w:1, h:1, type:'soldier' },
+    { id:'v3', x:0, y:3, w:1, h:2, type:'vert' },
+    { id:'v4', x:3, y:3, w:1, h:2, type:'vert' },
+    { id:'s3', x:1, y:3, w:1, h:1, type:'soldier' },
+    { id:'s4', x:2, y:3, w:1, h:1, type:'soldier' }
+  ];
+}
+
+// Generic tiler for the Grand Board: random board size each time, places a
+// 2x2 target, a random number of horizontal 2x1 blocks, then fills the rest
+// with vertical dominoes where possible (randomly skipped in favor of 1x1
+// soldiers sometimes) so the total piece count varies from game to game.
+function generateBigLayout(){
+  const cols = 8 + Math.floor(Math.random()*5);   // 8..12
+  const rows = 9 + Math.floor(Math.random()*5);   // 9..13
+  const targetX = Math.floor(cols/2)-1, targetY = 0;
+  const exitStart = targetX, exitEnd = targetX+1;
+  const occ = Array.from({length:rows}, ()=>Array(cols).fill(false));
+  const list = [];
+  let counter = 0;
+
+  function mark(x,y,w,h){ for(let dx=0;dx<w;dx++) for(let dy=0;dy<h;dy++) occ[y+dy][x+dx]=true; }
+
+  list.push({id:'target', x:targetX, y:targetY, w:2, h:2, type:'target'});
+  mark(targetX,targetY,2,2);
+
+  const exitCells = new Set();
+  for(let x=exitStart;x<=exitEnd;x++){ exitCells.add(x+','+(rows-1)); exitCells.add(x+','+(rows-2)); }
+
+  // a random number of horizontal 2x1 blocks scattered near the top
+  const horizCount = 1 + Math.floor(Math.random()*3); // 1..3
+  const horizCandidates = [];
+  for(let y=0; y<Math.min(rows-2,4); y++){
+    for(let x=0; x<=cols-2; x++) horizCandidates.push([x,y]);
+  }
+  horizCandidates.sort(()=>Math.random()-0.5);
+  let placedHoriz = 0;
+  for(const [hx,hy] of horizCandidates){
+    if(placedHoriz >= horizCount) break;
+    if(!occ[hy][hx] && !occ[hy][hx+1] && !exitCells.has(hx+','+hy) && !exitCells.has((hx+1)+','+hy)){
+      list.push({id:'p'+(counter++), x:hx, y:hy, w:2, h:1, type:'horiz'});
+      mark(hx,hy,2,1);
+      placedHoriz++;
+    }
+  }
+
+  for(let y=0; y<rows; y++){
+    for(let x=0; x<cols; x++){
+      if(occ[y][x]) continue;
+      if(exitCells.has(x+','+y)) continue;
+      // sometimes prefer a vertical domino, sometimes a single soldier,
+      // so the total piece count differs between generations
+      const wantsDomino = Math.random() < 0.65;
+      if(wantsDomino && y+1 < rows && !occ[y+1][x] && !exitCells.has(x+','+(y+1))){
+        list.push({id:'p'+(counter++), x, y, w:1, h:2, type:'vert'});
+        mark(x,y,1,2);
+      } else {
+        list.push({id:'p'+(counter++), x, y, w:1, h:1, type:'soldier'});
+        mark(x,y,1,1);
+      }
+    }
+  }
+  return { layout:list, exitStart, exitEnd, cols, rows };
+}
+
+function setBoardDims(cols, rows, exitStart, exitEnd){
+  COLS=cols; ROWS=rows; EXIT_START=exitStart; EXIT_END=exitEnd;
+  const wrap = document.getElementById('board-wrap');
+  wrap.style.aspectRatio = cols+' / '+rows;
+}
+
+function occupiedGrid(list, excludeId){
+  const set = new Set();
+  for(const p of list){
+    if(p.id === excludeId) continue;
+    for(let dx=0; dx<p.w; dx++) for(let dy=0; dy<p.h; dy++) set.add((p.x+dx)+','+(p.y+dy));
+  }
+  return set;
+}
+function inBounds(p, nx, ny){ return nx>=0 && ny>=0 && (nx+p.w)<=COLS && (ny+p.h)<=ROWS; }
+function canPlace(list, piece, nx, ny){
+  if(!inBounds(piece, nx, ny)) return false;
+  const occ = occupiedGrid(list, piece.id);
+  for(let dx=0; dx<piece.w; dx++) for(let dy=0; dy<piece.h; dy++) if(occ.has((nx+dx)+','+(ny+dy))) return false;
+  return true;
+}
+function isWin(list){
+  const t = list.find(p=>p.type==='target');
+  return t.x === EXIT_START && t.y === (ROWS - t.h);
+}
+
+function computeCellSize(){
+  const wrap = document.getElementById('board-wrap');
+  const rect = wrap.getBoundingClientRect();
+  cellSize = (rect.width - 12) / COLS;
+}
+
+function render(){
+  computeCellSize();
+  boardEl.querySelectorAll('.piece,.exit-marker').forEach(el=>el.remove());
+  const marker = document.createElement('div');
+  marker.className = 'exit-marker';
+  marker.style.left = (EXIT_START*cellSize)+'px';
+  marker.style.width = ((EXIT_END-EXIT_START+1)*cellSize)+'px';
+  marker.style.top = ((ROWS-1)*cellSize)+'px';
+  marker.style.height = cellSize+'px';
+  boardEl.appendChild(marker);
+
+  for(const p of pieces){
+    const el = document.createElement('div');
+    el.className = 'piece '+p.type+(p.id===selectedId?' selected':'');
+    el.style.left = (p.x*cellSize)+'px';
+    el.style.top = (p.y*cellSize)+'px';
+    el.style.width = (p.w*cellSize-4)+'px';
+    el.style.height = (p.h*cellSize-4)+'px';
+    el.textContent = p.type==='target' ? 'EXIT ↓' : '';
+    attachDrag(el, p);
+    el.addEventListener('click', ()=>{ selectedId=p.id; render(); });
+    boardEl.appendChild(el);
+  }
+  moveCountEl.textContent = moveCount;
+  bestCountEl.textContent = stats.bestMoves===null ? '—' : stats.bestMoves;
+}
+
+function attemptMove(id, dcol, drow){
+  const piece = pieces.find(p=>p.id===id);
+  if(!piece) return false;
+  const nx=piece.x+dcol, ny=piece.y+drow;
+  if(!canPlace(pieces, piece, nx, ny)) return false;
+  piece.x=nx; piece.y=ny; moveCount++;
+  sfxMove();
+  render();
+  if(isWin(pieces)) setTimeout(onSolved, 200);
+  return true;
+}
+
+document.addEventListener('keydown', (e)=>{
+  if(document.getElementById('screen-game').classList.contains('active') === false) return;
+  if(!selectedId) return;
+  let handled=true;
+  if(e.key==='ArrowUp') attemptMove(selectedId,0,-1);
+  else if(e.key==='ArrowDown') attemptMove(selectedId,0,1);
+  else if(e.key==='ArrowLeft') attemptMove(selectedId,-1,0);
+  else if(e.key==='ArrowRight') attemptMove(selectedId,1,0);
+  else handled=false;
+  if(handled) e.preventDefault();
+});
+
+function attachDrag(el, piece){
+  let startX=0,startY=0,curDX=0,curDY=0,dragging=false;
+  function down(e){
+    e.preventDefault(); selectedId=piece.id; dragging=true; el.classList.add('dragging');
+    const pt = e.touches?e.touches[0]:e; startX=pt.clientX; startY=pt.clientY; curDX=0;curDY=0;
+    document.querySelectorAll('.piece').forEach(p=>p.classList.remove('selected'));
+    el.classList.add('selected');
+    window.addEventListener('mousemove', move); window.addEventListener('touchmove', move,{passive:false});
+    window.addEventListener('mouseup', up); window.addEventListener('touchend', up);
+  }
+  function move(e){
+    if(!dragging) return; e.preventDefault();
+    const pt = e.touches?e.touches[0]:e; curDX=pt.clientX-startX; curDY=pt.clientY-startY;
+    el.style.transform = `translate(${curDX}px,${curDY}px)`;
+  }
+  function up(){
+    if(!dragging) return; dragging=false; el.classList.remove('dragging'); el.style.transform='';
+    window.removeEventListener('mousemove', move); window.removeEventListener('touchmove', move);
+    window.removeEventListener('mouseup', up); window.removeEventListener('touchend', up);
+    const threshold = cellSize*0.35;
+    if(Math.abs(curDX)<threshold && Math.abs(curDY)<threshold){ render(); return; }
+    const horiz = Math.abs(curDX)>Math.abs(curDY);
+    const cellsMoved = horiz ? Math.round(curDX/cellSize) : Math.round(curDY/cellSize);
+    const steps = Math.max(1, Math.min(Math.abs(cellsMoved), 4));
+    const dir = cellsMoved>0?1:-1;
+    for(let i=0;i<steps;i++){
+      const moved = horiz ? attemptMove(piece.id, dir, 0) : attemptMove(piece.id, 0, dir);
+      if(!moved) break;
+    }
+    render();
+  }
+  el.addEventListener('mousedown', down);
+  el.addEventListener('touchstart', down, {passive:false});
+}
+
+/* ---- legal-move shuffler (generic, uses supplied rng) ---- */
+const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+function cloneLayout(list){ return list.map(p=>({...p})); }
+function layoutsEqual(a,b){ for(const pa of a){ const pb=b.find(x=>x.id===pa.id); if(pa.x!==pb.x||pa.y!==pb.y) return false; } return true; }
+function getAllLegalMoves(list){
+  const moves=[];
+  for(const p of list) for(const [dx,dy] of DIRS){ const nx=p.x+dx, ny=p.y+dy; if(canPlace(list,p,nx,ny)) moves.push({id:p.id,dx,dy}); }
+  return moves;
+}
+function shuffleFromLayout(baseLayout, count, rng){
+  let working = cloneLayout(baseLayout);
+  let lastMove=null, performed=0, attempts=0; const maxAttempts=count*10+50;
+  while(performed<count && attempts<maxAttempts){
+    attempts++;
+    const legal = getAllLegalMoves(working);
+    if(legal.length===0) break;
+    let candidates = legal.filter(m=> !lastMove || m.id!==lastMove.id || !(m.dx===-lastMove.dx && m.dy===-lastMove.dy));
+    if(candidates.length===0) candidates=legal;
+    const chosen = candidates[Math.floor(rng()*candidates.length)];
+    const piece = working.find(p=>p.id===chosen.id);
+    piece.x+=chosen.dx; piece.y+=chosen.dy; lastMove=chosen; performed++;
+  }
+  if(layoutsEqual(working, baseLayout) || isWin(working)){
+    const extra=getAllLegalMoves(working);
+    if(extra.length>0){ const m=extra[Math.floor(rng()*extra.length)]; const piece=working.find(p=>p.id===m.id); piece.x+=m.dx; piece.y+=m.dy; }
+  }
+  return working;
+}
+
+function toggleDiffMenu(){ diffMenu.style.display = diffMenu.style.display==='flex'?'none':'flex'; }
+
+const DIFF_RANGES = { easy:[20,40], medium:[50,100], hard:[100,200] };
+function randomLevel(){ const levels=['easy','medium','hard']; return levels[Math.floor(Math.random()*levels.length)]; }
+
+function randomize(level){
+  const range = DIFF_RANGES[level];
+  const count = Math.floor(Math.random()*(range[1]-range[0]+1))+range[0];
+  pieces = shuffleFromLayout(initialLayoutSnapshot, count, Math.random);
+  moveCount=0; selectedId=null; diffMenu.style.display='none';
+  const modeName = MODES.find(m=>m.id===currentMode)?.name || currentMode;
+  document.getElementById('game-mode-label').textContent = modeName+' · '+level.toUpperCase();
+  render();
+}
+
+// Random mode never shows a difficulty picker: every click just reshuffles
+// with an internally-chosen random difficulty.
+function randomizeNoChoice(){
+  randomize(randomLevel());
+}
+
+// Grand Board's "randomize" regenerates an entirely new random board
+// (new size, new piece count) rather than shuffling the current one.
+function regenerateGrandBoard(){
+  const g = generateBigLayout();
+  setBoardDims(g.cols, g.rows, g.exitStart, g.exitEnd);
+  initialLayoutSnapshot = g.layout;
+  pieces = cloneLayout(initialLayoutSnapshot);
+  moveCount=0; selectedId=null;
+  setLabel('The Grand Board · '+g.layout.length+' blocks');
+  render();
+}
+
+function handleRandomizeClick(){
+  if(currentMode === 'random') randomizeNoChoice();
+  else if(currentMode === 'big') regenerateGrandBoard();
+  else toggleDiffMenu();
+}
+
+/* ================= MODE LAUNCH ================= */
+let taDifficulty = 'medium';
+function setTaDifficulty(level){
+  taDifficulty = level;
+  ['easy','medium','hard'].forEach(l=> document.getElementById('ta-'+l).classList.toggle('active', l===level));
+}
+function startTimeAttack(random){
+  const level = random ? randomLevel() : taDifficulty;
+  taDifficulty = level;
+  startMode('timeattack', level);
+}
+
+function startMode(id, taLevel){
+  currentMode = id;
+  clearInterval(timerInterval); timerInterval=null;
+  document.getElementById('hud-timer').style.display='none';
+  document.getElementById('randomizeBtnMain').style.display='none';
+  diffMenu.style.display='none';
+
+  if(id==='classic'){
+    setBoardDims(4,5,1,2);
+    initialLayoutSnapshot = classicLayout();
+    pieces = cloneLayout(initialLayoutSnapshot);
+    setLabel('Classic');
+  } else if(id==='big'){
+    const g = generateBigLayout();
+    setBoardDims(g.cols, g.rows, g.exitStart, g.exitEnd);
+    initialLayoutSnapshot = g.layout;
+    pieces = cloneLayout(initialLayoutSnapshot);
+    setLabel('The Grand Board · '+g.layout.length+' blocks');
+    document.getElementById('randomizeBtnMain').style.display='';
+  } else if(id==='challenge'){
+    setBoardDims(4,5,1,2);
+    initialLayoutSnapshot = classicLayout();
+    pieces = shuffleFromLayout(initialLayoutSnapshot, 150, Math.random);
+    setLabel('Challenge');
+  } else if(id==='timeattack'){
+    const level = taLevel || taDifficulty;
+    taDifficulty = level;
+    const range = DIFF_RANGES[level];
+    const count = Math.floor(Math.random()*(range[1]-range[0]+1))+range[0];
+    const seconds = level==='easy' ? 240 : level==='medium' ? 180 : 120;
+    setBoardDims(4,5,1,2);
+    initialLayoutSnapshot = classicLayout();
+    pieces = shuffleFromLayout(initialLayoutSnapshot, count, Math.random);
+    setLabel('Time Attack · '+level.toUpperCase());
+    startTimer(seconds);
+    document.getElementById('randomizeBtnMain').style.display='';
+  } else if(id==='random'){
+    setBoardDims(4,5,1,2);
+    initialLayoutSnapshot = classicLayout();
+    pieces = shuffleFromLayout(initialLayoutSnapshot, DIFF_RANGES[randomLevel()][0]+10, Math.random);
+    setLabel('Random');
+    document.getElementById('randomizeBtnMain').style.display='';
+  } else if(id==='daily'){
+    setBoardDims(4,5,1,2);
+    initialLayoutSnapshot = classicLayout();
+    const rng = mulberry32(dateSeed());
+    pieces = shuffleFromLayout(initialLayoutSnapshot, 60, rng);
+    setLabel('Daily Puzzle · '+todayString());
+  }
+
+  moveCount=0; selectedId=null; startTimestamp=Date.now();
+  nav('screen-game');
+  render();
+}
+
+function setLabel(text){ document.getElementById('game-mode-label').textContent = text; }
+
+function startTimer(seconds){
+  timeRemaining = seconds;
+  document.getElementById('hud-timer').style.display='';
+  document.getElementById('timerVal').textContent = timeRemaining+'s';
+  clearInterval(timerInterval);
+  timerInterval = setInterval(()=>{
+    timeRemaining--;
+    document.getElementById('timerVal').textContent = Math.max(0,timeRemaining)+'s';
+    if(timeRemaining<=0){
+      clearInterval(timerInterval);
+      document.getElementById('timeUpOverlay').classList.add('show');
+    }
+  },1000);
+}
+
+/* ================= RESET / EXIT ================= */
+function resetGame(){
+  if(settings.confirmReset){ document.getElementById('confirmOverlay').classList.add('show'); return; }
+  confirmedReset();
+}
+function confirmedReset(){
+  closeOverlay('confirmOverlay');
+  // simplest reliable reset: restart the current puzzle fresh
+  if(currentMode === 'journey') startLevel(currentLevelNum);
+  else startMode(currentMode);
+}
+function closeOverlay(id){ document.getElementById(id).classList.remove('show'); }
+
+function exitToMenu(){
+  if(moveCount>0){ document.getElementById('confirmExitOverlay').classList.add('show'); return; }
+  confirmedExit();
+}
+function confirmedExit(){
+  closeOverlay('confirmExitOverlay');
+  clearInterval(timerInterval); timerInterval=null;
+  nav(currentMode==='journey' ? 'screen-levels' : 'screen-modes');
+}
+
+/* ================= WIN FLOW ================= */
+function onSolved(){
+  sfxWin();
+  clearInterval(timerInterval); timerInterval=null;
+  const elapsed = Math.round((Date.now()-startTimestamp)/1000);
+  let isNewBest = false;
+  if(stats.bestMoves===null || moveCount < stats.bestMoves){ stats.bestMoves = moveCount; isNewBest = true; }
+  if(currentMode==='timeattack'){
+    if(stats.bestTime===null || elapsed < stats.bestTime) stats.bestTime = elapsed;
+  }
+  stats.solved++; stats.totalMoves += moveCount;
+  stats.modeCounts[currentMode] = (stats.modeCounts[currentMode]||0)+1;
+  const today = todayString();
+  if(stats.lastSolvedDate !== today){
+    stats.streak = (stats.lastSolvedDate === yesterdayString()) ? stats.streak+1 : 1;
+    stats.lastSolvedDate = today;
+  }
+  if(currentMode==='daily' && !stats.dailyCompletedDates.includes(today)) stats.dailyCompletedDates.push(today);
+
+  let justUnlockedNext = false;
+  if(currentMode==='journey'){
+    if(!stats.completedLevels.includes(currentLevelNum)) stats.completedLevels.push(currentLevelNum);
+    if(currentLevelNum === stats.unlockedLevel && currentLevelNum < TOTAL_LEVELS){
+      stats.unlockedLevel = currentLevelNum + 1;
+      justUnlockedNext = true;
+    }
+  }
+  saveJSON('klotski_stats', stats);
+
+  document.getElementById('bestBadge').style.display = isNewBest ? '' : 'none';
+  document.getElementById('win-moves').textContent = `Moves: ${moveCount}`;
+  const timeEl = document.getElementById('win-time');
+  if(currentMode==='timeattack'){ timeEl.style.display=''; timeEl.textContent = `Time used: ${elapsed}s`; } else timeEl.style.display='none';
+  if(currentMode==='journey'){
+    document.getElementById('win-diff').textContent = `Journey · Level ${currentLevelNum} / ${TOTAL_LEVELS}`+(justUnlockedNext && currentLevelNum<TOTAL_LEVELS ? ' — next level unlocked!' : '');
+  } else {
+    document.getElementById('win-diff').textContent = `Mode: ${MODES.find(m=>m.id===currentMode)?.name || currentMode}`;
+  }
+  winOverlay.classList.add('show');
+}
+function yesterdayString(){ const d=new Date(); d.setDate(d.getDate()-1); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+
+function nextPuzzle(){
+  winOverlay.classList.remove('show');
+  if(currentMode==='journey'){
+    if(currentLevelNum < TOTAL_LEVELS && currentLevelNum < stats.unlockedLevel) startLevel(currentLevelNum+1);
+    else nav('screen-levels');
+  } else startMode(currentMode);
+}
+function replayPuzzle(){
+  winOverlay.classList.remove('show'); document.getElementById('timeUpOverlay').classList.remove('show');
+  if(currentMode==='journey') startLevel(currentLevelNum);
+  else startMode(currentMode);
+}
+function goHomeFromOverlay(){
+  winOverlay.classList.remove('show'); document.getElementById('timeUpOverlay').classList.remove('show');
+  nav(currentMode==='journey' ? 'screen-levels' : 'screen-modes');
+}
+
+/* ================= INIT ================= */
+window.nav = nav; window.startMode = startMode; window.randomize = randomize; window.toggleDiffMenu = toggleDiffMenu;
+window.handleRandomizeClick = handleRandomizeClick; window.setTaDifficulty = setTaDifficulty; window.startTimeAttack = startTimeAttack;
+window.resetGame = resetGame; window.confirmedReset = confirmedReset; window.closeOverlay = closeOverlay;
+window.exitToMenu = exitToMenu; window.confirmedExit = confirmedExit; window.nextPuzzle = nextPuzzle;
+window.replayPuzzle = replayPuzzle; window.goHomeFromOverlay = goHomeFromOverlay;
+window.toggleSetting = toggleSetting; window.setTheme = setTheme; window.setVolume = setVolume;
+window.askReset = askReset; window.performReset = performReset; window.startLevel = startLevel;
+
+function unlockAudioOnce(){
+  ensureAudioCtx();
+  updateMusicState();
+  window.removeEventListener('click', unlockAudioOnce);
+  window.removeEventListener('touchstart', unlockAudioOnce);
+}
+window.addEventListener('click', unlockAudioOnce);
+window.addEventListener('touchstart', unlockAudioOnce);
+
+window.addEventListener('resize', ()=>{ if(document.getElementById('screen-game').classList.contains('active')) render(); });
+window.addEventListener('DOMContentLoaded', ()=>{
+  applySettingsToUI();
+  refreshHome();
+});
+applySettingsToUI();
+refreshHome();
+})();
+</script>
+</body>
+</html>
